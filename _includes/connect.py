@@ -1,4 +1,4 @@
-# _includes/connect.py
+#_includes/connect.py
 import asyncio
 import random
 import ssl
@@ -13,7 +13,7 @@ from .response import response
 URILIST = ["wss://proxy.wynd.network:4444/", "wss://proxy.wynd.network:4650/"]
 SERVER_HOSTNAME = "proxy.wynd.network"
 
-async def connect(socks5_proxy, user_id, stats, max_retries=2):  # Added stats parameter
+async def connect(socks5_proxy, user_id, stats, proxy_ip, protocol, username_password, port, max_retries=2):  # Added stats parameter
     """Connects to the websocket and handles interaction with retry logic."""
     retries = 0
     device_id = str(uuid.uuid3(uuid.NAMESPACE_DNS, socks5_proxy))
@@ -30,17 +30,17 @@ async def connect(socks5_proxy, user_id, stats, max_retries=2):  # Added stats p
 
             async with proxy_connect(uri, proxy=proxy, ssl=ssl_context, server_hostname=SERVER_HOSTNAME,
                                      extra_headers=custom_headers) as websocket:
-                asyncio.create_task(ping(websocket, stats))  # Pass stats to ping()
-                await response(websocket, device_id, user_id, random_user_agent, stats)  # Pass stats to response()
+                asyncio.create_task(ping(websocket, stats, proxy_ip))  # Pass socks5_proxy
+                await response(websocket, device_id, user_id, random_user_agent, stats, proxy_ip)  # Pass socks5_proxy
 
         except asyncio.CancelledError:
-            logger.info(f"Connection task cancelled for proxy: {socks5_proxy}")
+            logger.info(f"Connection task cancelled for proxy: \033[47m\033[30m {proxy_ip}\033[0m")
             break
 
         except Exception as e:
             retries += 1
-            logger.error(f"Error with proxy {socks5_proxy}: {e}. Retry attempt {retries}/{max_retries}")
+            logger.error(f"\033[43;30m {retries}/{max_retries} RETRIES    \033[47;30m {proxy_ip}\033[0m")
             if retries >= max_retries:
                 stats['dropped'] += 1  # Increment dropped count if max retries reached
-                logger.error(f"Max retries reached for proxy {socks5_proxy}. Giving up.")
+                logger.error(f"\033[43;30m MAX RETRIES    \033[47;30m {proxy_ip}\033[0m")
             await asyncio.sleep(5)

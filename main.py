@@ -9,6 +9,7 @@ from _includes.status_bar import StickyStatusBar
 from _includes.interrupt import interrupt_handler
 import collections
 import time
+import re
 
 # Helper function to get background color based on log level
 def _get_background_color(level_name):
@@ -30,9 +31,20 @@ def _get_prefix(level_name):
     }
     return prefix_mapping.get(level_name, "")  # Default to empty prefix
 
+# Helper function to format IP address
+def format_ip(ip_address):
+    if ip_address:  # Check if ip_address is not None
+        parts = ip_address.split(".")
+        formatted_parts = []
+        for part in parts:
+            part = part.rjust(3)  # Pad with spaces to 3 characters
+            formatted_parts.append(part)
+        return ".".join(formatted_parts)
+    return ""  # Return empty string if ip_address is None
+
 def colored_sink(message):
     record = message.record
-    formatted_message = " {time}{level: <8} {name}:{function}:{line} - {message}"
+    formatted_message = " {time}{level: <8}{message}" # {name}:{function}:{line}
 
     # Apply color to the entire level section:
     colored_level = f"\033[30m\033[{_get_background_color(record['level'].name)}m{_get_prefix(record['level'].name)} {record['level'].name} \033[0m"
@@ -70,27 +82,41 @@ async def main():
         return
 
     num_devices = len(local_proxies)
-    logger.info(f"Connecting with {num_devices} devices")  # Log the connection message
+    logger.info(f"\033[44m CONNECTING     \033[42;37m {num_devices} devices\033[0m")  # Log the connection message
 
-    status_bar = StickyStatusBar("\033[46m\033[30m                     \033[0m\033[47m\033[30m    ACTIVE \033[0m\033[102m\033[30m 0 \033[0m\033[47m\033[30m PING \033[0m\033[102m\033[30m 0 \033[0m\033[47m\033[30m PONG \033[0m\033[102m\033[30m 0 \033[0m\033[47m\033[30m DROP \033[0m\033[41m\033[30m 0 \033[0m")
+    status_bar = StickyStatusBar("\033[30m")
     interrupt_handler(status_bar)
 
     async def update_status_bar(tasks, stats):
         while True:
             active_tasks = sum(1 for task in tasks if not task.done())
             current_time = time.strftime("%Y-%m-%d %H:%M:%S")  # Get current time
-            styled_text = f" \033[46m\033[30m {current_time} \033[0m\033[47m\033[30m    ACTIVE \033[0m\033[102m\033[30m {active_tasks} \033[0m\033[47m\033[30m PING \033[0m\033[102m\033[30m {stats['pings']} \033[0m\033[47m\033[30m PONG \033[0m\033[102m\033[30m {stats['pongs']} \033[0m\033[47m\033[30m DROP \033[0m\033[41m\033[30m {stats['dropped']} \033[0m"
+            styled_text = f" \033[46m\033[30m {current_time} \033[0m\033[47m\033[30m    ACTIVE \033[0m\033[102m\033[30m {active_tasks} \033[0m\033[47m\033[30m PING \033[0m\033[102m\033[30m {stats['pings']} \033[0m\033[47m\033[30m PONG \033[0m\033[102m\033[30m {stats['pongs']} \033[0m"
             print(f"\0337{styled_text}\r\0338", end="", flush=True)
             await asyncio.sleep(0.25)
 
     async def connect_with_stats(proxy, user_id, stats):
+        # Extract components from the proxy string using urlparse (more reliable)
         try:
-            await connect(proxy, user_id, stats)
+            from urllib.parse import urlparse  # Python 3
+        except ImportError:
+            from urlparse import urlparse  # Python 2
+
+        parsed_proxy = urlparse(proxy)
+        proxy_ip = format_ip(parsed_proxy.hostname)
+        protocol = parsed_proxy.scheme
+        port = parsed_proxy.port
+        if parsed_proxy.username:
+            username_password = f"{parsed_proxy.username}:{parsed_proxy.password}@"
+        else:
+            username_password = "" # or None if you prefer
+
+        try:
+            await connect(proxy, user_id, stats, proxy_ip, protocol, username_password, port) # Pass proxy_ip to connect
         except Exception as e:
             if not isinstance(e, asyncio.CancelledError):
-                 logger.exception(f"Proxy {proxy} dropped: {e}")  # Log the exception details for debugging
-                 stats['dropped'] += 1
-
+                logger.exception(f"Proxy {formatted_ip} dropped: {e}")
+                stats['dropped'] += 1
 
     stats = collections.defaultdict(int)
     tasks = [asyncio.create_task(connect_with_stats(proxy, user_id, stats)) for proxy in local_proxies]
@@ -103,7 +129,7 @@ async def main():
             logger.exception(f"An error occurred: {e}") # Log other exceptions
     finally:
         status_bar.clear()
-        logger.info("Shutdown complete (if reached).")
+        logger.info("\033[41;37m Shutting down ...\033[0m")
 
 
 

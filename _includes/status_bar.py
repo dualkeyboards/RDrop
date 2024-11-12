@@ -1,3 +1,4 @@
+#_includes/status_bar.py
 class StickyStatusBar:
     def __init__(self, initial_text):
         self.initial_text = initial_text

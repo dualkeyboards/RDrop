@@ -2,11 +2,22 @@
 import asyncio
 import os
 import signal
+import sys
 from loguru import logger
 from _includes.connect import connect
 from _includes.status_bar import StickyStatusBar
 from _includes.interrupt import interrupt_handler
 import collections
+
+# Correct way to configure the log format:
+logger.configure(
+    patcher=lambda record: record["extra"].update(time=record["time"].strftime("%Y-%m-%d %H:%M:%S")), # Update extra in place
+    handlers=[
+        {"sink": sys.stderr, "format": "{extra[time]} | {level: <8} | {name}:{function}:{line} - {message}"}
+    ]
+)
+
+
 
 async def main():
     user_id = input('Please Enter your user ID: ')
@@ -35,7 +46,7 @@ async def main():
             await connect(proxy, user_id, stats)
         except Exception as e:
             if not isinstance(e, asyncio.CancelledError):
-                 logger.exception(f"Proxy {proxy} dropped: {e}")
+                 logger.exception(f"Proxy {proxy} dropped: {e}")  # Log the exception details for debugging
                  stats['dropped'] += 1
 
 
@@ -47,10 +58,11 @@ async def main():
         await asyncio.gather(*tasks)
     except Exception as e:
         if not isinstance(e, asyncio.CancelledError):
-            logger.exception(f"An error occurred: {e}")
+            logger.exception(f"An error occurred: {e}") # Log other exceptions
     finally:
         status_bar.clear()
         logger.info("Shutdown complete (if reached).")
+
 
 
 if __name__ == '__main__':

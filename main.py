@@ -8,16 +8,53 @@ from _includes.connect import connect
 from _includes.status_bar import StickyStatusBar
 from _includes.interrupt import interrupt_handler
 import collections
+import time
 
-# Correct way to configure the log format:
+# Helper function to get background color based on log level
+def _get_background_color(level_name):
+    color_mapping = {
+        "ERROR": "41",  # Red
+        "INFO": "47",  # White
+        "SUCCESS": "42",  # Green
+        "WARNING": "43", # Yellow
+    }
+    return color_mapping.get(level_name, "0")  # Default to no background
+
+# Helper function to get custom prefix based on level
+def _get_prefix(level_name):
+    prefix_mapping = {
+        "INFO": "     ",  # 6 spaces
+        "WARNING": "  ",  # 3 spaces
+        "SUCCESS": "  ",  # 3 spaces
+        "ERROR": "    ",  # 5 spaces
+    }
+    return prefix_mapping.get(level_name, "")  # Default to empty prefix
+
+def colored_sink(message):
+    record = message.record
+    formatted_message = " {time}{level: <8} {name}:{function}:{line} - {message}"
+
+    # Apply color to the entire level section:
+    colored_level = f"\033[30m\033[{_get_background_color(record['level'].name)}m{_get_prefix(record['level'].name)} {record['level'].name} \033[0m"
+
+    # Colorize the timestamp background in cyan and text in black:
+    colored_time = f"\033[46m\033[30m {record['time'].strftime('%Y-%m-%d %H:%M:%S')} \033[0m"  # 46 for cyan background, 30 for black text
+
+    styled_message = formatted_message.format(
+        time=colored_time,  # Use colored time
+        level=colored_level,  # Use colored level
+        name=record["name"],
+        function=record["function"],
+        line=record["line"],
+        message=record["message"]
+    )
+    print(styled_message)
+
+
 logger.configure(
-    patcher=lambda record: record["extra"].update(time=record["time"].strftime("%Y-%m-%d %H:%M:%S")), # Update extra in place
-    handlers=[
-        {"sink": sys.stderr, "format": "{extra[time]} | {level: <8} | {name}:{function}:{line} - {message}"}
-    ]
+    patcher=lambda record: record["extra"].update(time=record["time"].strftime("%Y-%m-%d %H:%M:%S")),
+    handlers=[{"sink": colored_sink}]
 )
-
-
 
 async def main():
     user_id = input('Please Enter your user ID: ')
@@ -32,13 +69,18 @@ async def main():
         logger.error("local_proxies.txt is empty. Please add proxies.")
         return
 
-    status_bar = StickyStatusBar("ACTIVE: 0 | PING: 0 | PONG: 0 | DROP: 0")
+    num_devices = len(local_proxies)
+    logger.info(f"Connecting with {num_devices} devices")  # Log the connection message
+
+    status_bar = StickyStatusBar("\033[46m\033[30m                     \033[0m\033[47m\033[30m    ACTIVE \033[0m\033[102m\033[30m 0 \033[0m\033[47m\033[30m PING \033[0m\033[102m\033[30m 0 \033[0m\033[47m\033[30m PONG \033[0m\033[102m\033[30m 0 \033[0m\033[47m\033[30m DROP \033[0m\033[41m\033[30m 0 \033[0m")
     interrupt_handler(status_bar)
 
     async def update_status_bar(tasks, stats):
         while True:
             active_tasks = sum(1 for task in tasks if not task.done())
-            status_bar.update(f"ACTIVE: {active_tasks} | PING: {stats['pings']} | PONG: {stats['pongs']} | DROP: {stats['dropped']}")
+            current_time = time.strftime("%Y-%m-%d %H:%M:%S")  # Get current time
+            styled_text = f" \033[46m\033[30m {current_time} \033[0m\033[47m\033[30m    ACTIVE \033[0m\033[102m\033[30m {active_tasks} \033[0m\033[47m\033[30m PING \033[0m\033[102m\033[30m {stats['pings']} \033[0m\033[47m\033[30m PONG \033[0m\033[102m\033[30m {stats['pongs']} \033[0m\033[47m\033[30m DROP \033[0m\033[41m\033[30m {stats['dropped']} \033[0m"
+            print(f"\0337{styled_text}\r\0338", end="", flush=True)
             await asyncio.sleep(0.25)
 
     async def connect_with_stats(proxy, user_id, stats):

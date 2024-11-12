@@ -28,8 +28,6 @@ async def connect(socks5_proxy, user_id, stats, max_retries=2):  # Added stats p
             uri = random.choice(URILIST)
             proxy = Proxy.from_url(socks5_proxy)
 
-            logger.info(f"Connecting with device ID: {device_id}")
-
             async with proxy_connect(uri, proxy=proxy, ssl=ssl_context, server_hostname=SERVER_HOSTNAME,
                                      extra_headers=custom_headers) as websocket:
                 asyncio.create_task(ping(websocket, stats))  # Pass stats to ping()

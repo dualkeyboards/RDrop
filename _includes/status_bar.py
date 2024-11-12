@@ -6,7 +6,7 @@ class StickyStatusBar:
 
     def update(self, text):
         # ANSI escape codes for white background and black text
-        styled_text = f"\033[47m\033[30m {text} \033[0m"  # 47 for white background
+        styled_text = f"\033[30m {text} \033[0m"  # 47 for white background
         print(f"\0337{styled_text}\r\0338", end="", flush=True)
 
     def clear(self):

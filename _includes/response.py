@@ -1,3 +1,4 @@
+#_includes/response.py
 import asyncio
 import json
 from loguru import logger
@@ -10,7 +11,7 @@ async def response(websocket, device_id, user_id, user_agent, stats):  # stats p
         try:
             response_data = await websocket.recv()
             message = json.loads(response_data)
-            logger.info(message)  # Log the received message
+            logger.success(message)  # Log the received message
 
             if message.get("action") == "AUTH":
                 await auth(websocket, device_id, user_id, user_agent, message)

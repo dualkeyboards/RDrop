@@ -17,5 +17,5 @@ async def auth(websocket, device_id, user_id, user_agent, message):
             "version": "4.28.2",
         }
     }
-    logger.debug(auth_response)
+    logger.info(f"AUTH response: {auth_response}")
     await websocket.send(json.dumps(auth_response))

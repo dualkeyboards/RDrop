@@ -10,7 +10,7 @@ async def ping(websocket, stats):  # Takes the stats dictionary as an argument
         try:
             send_message = json.dumps(
                 {"id": str(uuid.uuid4()), "version": "1.0.0", "action": "PING", "data": {}})
-            logger.debug(f"Sending ping: {send_message}")
+            logger.info(f"Sending ping: {send_message}") # Changed to info
             await websocket.send(send_message)
             stats['pings'] += 1  # Increment ping counter
             await asyncio.sleep(5)

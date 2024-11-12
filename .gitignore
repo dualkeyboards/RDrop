@@ -1,0 +1,5 @@
+*.txt
+*.pyc
+__init__.py
+__pycache__/
+local_proxies.txt

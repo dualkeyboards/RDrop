@@ -4,7 +4,7 @@ from loguru import logger
 
 def interrupt_handler(status_bar):
     def signal_handler(sig, frame):
-        logger.info(f"Cancelled, exiting...")
+        logger.info(f"Cancelled, exiting...\n")
         status_bar.clear()
         os._exit(1)
 
